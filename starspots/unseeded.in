@@ -1,0 +1,35 @@
+#PLANET PROPERTIES
+{n_planets}			    ; Number of planets -- (if there are more than 1 planet, then the set of 8 planet properties are repeated)
+{first_mid_transit_time:.15f}	; T0, epoch         (middle of first transit) in days.
+{period:.10f}			    ; Planet Period      (days)
+{transit_depth:.10f}		    ; (Rp/Rs)^2         (Rplanet / Rstar )^ 2
+{transit_duration_days:.10f}	; Duration (days)   (physical duration of transit, not used)
+{impact_parameter:.10f}		; Impact parameter  (0= planet cross over equator)
+{inclination:.10f}			; Inclination angle of orbit (90 deg = planet crosses over equator)
+{orbit_lambda:.10f}			; Lambda of orbit (0 deg = orbital axis along z-axis)
+{ecosw:.10f}			        ; ecosw
+{esinw:.10f}			        ; esinw
+#STAR PROPERTIES
+{mean_stellar_density}		    ; Mean Stellar density (Msun/Rsun^3)
+{stellar_rotation_period}		; Stellar Rotation period (days)
+{stellar_temperature}			; Stellar Temperature
+{stellar_metallicity}			; Stellar metallicity
+{tilt_stellar_rotation_axis}	; Tilt of the rotation axis of the star down from z-axis (degrees)
+{four_param_limb_darkening}	    ; Limb darkening (4 coefficients)
+{n_ld_rings}			        ; number of rings for limb darkening appoximation
+#SPOT PROPERTIES
+{n_spots}				; number of spots
+{fractional_spot_contrast}		    		; fractional lightness of spots (0.0=total dark, 1.0=same as star)
+#LIGHT CURVE
+{lightcurve_path}			; lightcurve input data file
+{start_fit_time}				; start time to start fitting the light curve
+{fit_duration_days}			; duration of light curve to fit (days)
+{noise_corrected_max}			; real maximum of light curve data (corrected for noise), 0 -> use downfrommax
+{flattened_flag}				; is light curve flattened (to zero) outside of transits?
+#ACTION
+{action}		; M= unseeded mcmc
+{random_seed}	; random seed
+{a_scale}		; ascale
+{n_chains}		; number of chains
+{n_steps}		; mcmc steps
+{calc_brightness}		; 0= use downfrommax normalization, 1= calculate brightness factor for every model

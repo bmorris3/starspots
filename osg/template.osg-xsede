@@ -1,0 +1,31 @@
+universe = vanilla
+requirements = (FileSystemDomain != "") && (Memory >= 1) && (Arch == "X86_64")
+
+# has to specify project name to get it run on xsede osg cluster
++ProjectName={xsede_allocation_name}
+
+# Run in this directory
+initialdir = {initial_directory}
+
+# executeable path is relative to current dir, not InitialDir
+executable = {stsp_executable}
+# if there is file arguument, it must apply based on the remote gw
+arguments = {dot_in_file}
+
+# input file
+transfer_input_files = {transfer_input_files}
+transfer_output_files = {transfer_output_files}
+
+# transfer output back
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+
+# command output and log
+output = {stdout_path}
+error = {stderr_path}
+log = {log_path}
+
+notification = never
+
+# this only affects in/out file path root dir
+queue
