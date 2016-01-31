@@ -239,14 +239,14 @@ def lnprob_fixed_ephem(theta, x, y, yerr):
 
 
 def plot_triangle(samples):
-    import triangle
+    import corner
     if samples.shape[1] == 2:
-        fig = triangle.corner(samples, labels=["$t_0$", "$P$"])
+        fig = corner.corner(samples, labels=["$t_0$", "$P$"])
     if samples.shape[1] == 6:
-        fig = triangle.corner(samples, labels=["$t_0$", r"depth", r"duration",
+        fig = corner.corner(samples, labels=["$t_0$", r"depth", r"duration",
                                                r"$b$", "$q_1$", "$q_2$"])
     elif samples.shape[1] == 8:
-        fig = triangle.corner(samples, labels=["$t_0$", r"depth", r"duration",
+        fig = corner.corner(samples, labels=["$t_0$", r"depth", r"duration",
                                                r"$b$", "$q_1$", "$q_2$", "$q_3$", "$q_4$"])
     plt.show()
 
