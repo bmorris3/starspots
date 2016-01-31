@@ -10,132 +10,118 @@ MCMC methods here have been adapted to allow input with either
 quadratic or nonlinear (four parameter) limb-darkening parameterizations.
 """
 
+from copy import deepcopy
+
+from .systemparams import aRs_i
+
 import emcee
 import numpy as np
 import batman
 import matplotlib.pyplot as plt
 import astropy.units as u
 
-def T14b2aRsi(P, T14, b, RpRs, eccentricity, omega):
-    '''
-    Convert from duration and impact param to a/Rs and inclination
-    '''
-    beta = (1 - eccentricity**2)/(1 + eccentricity*np.sin(np.radians(omega)))
-    C = np.sqrt(1 - eccentricity**2)/(1 + eccentricity*np.sin(np.radians(omega)))
-    i = np.arctan(beta * np.sqrt((1 + RpRs)**2 - b**2)/(b*np.sin(T14*np.pi/(P*C))))
-    aRs = b/(np.cos(i) * beta)
-    return aRs, np.degrees(i)
 
-ecosw = 0.261# ? 0.082
-esinw = 0.085# ? 0.043
-eccentricity = np.sqrt(ecosw**2 + esinw**2)
-omega = np.degrees(np.arccos(ecosw/eccentricity))
+# def generate_model_lc_short(times, t0, depth, dur, b, q1, q2, q3=None, q4=None):
+#     # LD parameters from Deming 2011 http://adsabs.harvard.edu/abs/2011ApJ...740...33D
+#     rp = depth**0.5
+#     exp_time = (1*u.min).to(u.day).value # Short cadence
+#     params = batman.TransitParams()
+#     params.t0 = t0                       #time of inferior conjunction
+#     params.per = P                     #orbital period
+#     params.rp = rp                      #planet radius (in units of stellar radii)
+#
+#     params.ecc = e                      #eccentricity
+#     params.w = w                      #longitude of periastron (in degrees)
+#     a, inc = T14b2aRsi(params.per, dur, b, rp, e, w)
+#
+#     params.a = a                       #semi-major axis (in units of stellar radii)
+#     params.inc = inc #orbital inclination (in degrees)
+#
+#
+#     u1 = 2*np.sqrt(q1)*q2
+#     u2 = np.sqrt(q1)*(1 - 2*q2)
+#
+#     if q3 is None and q4 is None:
+#         params.u = [u1, u2]                #limb darkening coefficients
+#         params.limb_dark = "quadratic"       #limb darkening model
+#
+#     else:
+#         params.u = [q1, q2, q3, q4]
+#         params.limb_dark = "nonlinear"
+#
+#     m = batman.TransitModel(params, times, supersample_factor=7,
+#                             exp_time=exp_time)
+#     model_flux = m.light_curve(params)
+#     return model_flux
 
-#ecosw = 0.228
-#esinw = 0.056
-#ecentricity = np.sqrt(ecosw**2 + esinw**2)
-#omega = np.degrees(np.arccos(ecosw/eccentricity))
+def generate_model_lc_short(times, transit_params, t0=None, depth=None,
+                            dur=None, b=None, q1=None, q2=None,
+                            per=None):
+    """
+    Generate a short-cadence model light curve.
+    
+    times : `numpy.ndarray`
+    transit_params : `batman.TransitParams`
+    t0 : float
+    depth : float
+    dur : float
+    b : float
+    q1 : float
+    q2 : float
+    per : float
+    """
+    exp_time = (1*u.min).to(u.day).value
+    transit_params_copy = deepcopy(transit_params)
 
-def generate_model_lc_short(times, t0, depth, dur, b, q1, q2, q3=None, q4=None, P=4.8878018,
-                            e=eccentricity, w=omega):
-    # LD parameters from Deming 2011 http://adsabs.harvard.edu/abs/2011ApJ...740...33D
-    rp = depth**0.5
-    exp_time = (1*u.min).to(u.day).value # Short cadence
-    params = batman.TransitParams()
-    params.t0 = t0                       #time of inferior conjunction
-    params.per = P                     #orbital period
-    params.rp = rp                      #planet radius (in units of stellar radii)
+    if t0 is not None:
+        transit_params_copy.t0 = t0
+    if depth is not None:
+        transit_params_copy.rp = depth**0.5
+    if dur is not None:
+        transit_params_copy.duration = dur
+    if b is not None:
+        transit_params_copy.b = b
+    if q1 is not None and q2 is not None:
+        u1 = 2*np.sqrt(q1)*q2
+        u2 = np.sqrt(q1)*(1 - 2*q2)
+        transit_params_copy.u = [u1, u2]
+    if per is not None:
+        transit_params_copy.per = per
 
-    params.ecc = e                      #eccentricity
-    params.w = w                      #longitude of periastron (in degrees)
-    a, inc = T14b2aRsi(params.per, dur, b, rp, e, w)
+    aRs, inc = aRs_i(transit_params_copy)
+    transit_params_copy.a = aRs
+    transit_params_copy.inc = inc
 
-    params.a = a                       #semi-major axis (in units of stellar radii)
-    params.inc = inc #orbital inclination (in degrees)
-
-
-    u1 = 2*np.sqrt(q1)*q2
-    u2 = np.sqrt(q1)*(1 - 2*q2)
-
-    if q3 is None and q4 is None:
-        params.u = [u1, u2]                #limb darkening coefficients
-        params.limb_dark = "quadratic"       #limb darkening model
-
-    else:
-        params.u = [q1, q2, q3, q4]
-        params.limb_dark = "nonlinear"
-
-    m = batman.TransitModel(params, times, supersample_factor=7,
+    m = batman.TransitModel(transit_params_copy, times, supersample_factor=7,
                             exp_time=exp_time)
-    model_flux = m.light_curve(params)
+    model_flux = m.light_curve(transit_params_copy)
     return model_flux
-
-
-def generate_model_lc_short_full(times, depth, dur, b, ecosw, esinw, q1, q2,
-                                 q3=None, q4=None, fixed_P=None, fixed_t0=None):
-    # LD parameters from Deming 2011 http://adsabs.harvard.edu/abs/2011ApJ...740...33D
-    rp = depth**0.5
-    exp_time = (1*u.min).to(u.day).value # Short cadence
-    params = batman.TransitParams()
-    params.t0 = fixed_t0                       #time of inferior conjunction
-    params.per = fixed_P                     #orbital period
-    params.rp = rp                      #planet radius (in units of stellar radii)
-
-    eccentricity = np.sqrt(ecosw**2 + esinw**2)
-    omega = np.degrees(np.arccos(ecosw/eccentricity))
-    a, inc = T14b2aRsi(params.per, dur, b, rp, eccentricity, omega)
-
-    params.a = a                       #semi-major axis (in units of stellar radii)
-    params.inc = inc #orbital inclination (in degrees)
-
-    params.ecc = eccentricity                      #eccentricity
-    params.w = omega                       #longitude of periastron (in degrees)
-
-    u1 = 2*np.sqrt(q1)*q2
-    u2 = np.sqrt(q1)*(1 - 2*q2)
-
-    if q3 is None and q4 is None:
-        params.u = [u1, u2]                #limb darkening coefficients
-        params.limb_dark = "quadratic"       #limb darkening model
-
-    else:
-        params.u = [q1, q2, q3, q4]
-        params.limb_dark = "nonlinear"
-
-    m = batman.TransitModel(params, times, supersample_factor=7,
-                            exp_time=exp_time)
-    model_flux = m.light_curve(params)
-    return model_flux
-
 
 #### Tools for fitting spotless transits
 
-def lnlike(theta, x, y, yerr, P):
-    model = generate_model_lc_short(x, *theta, P=P)
+
+def lnlike(theta, x, y, yerr, transit_params):
+    model = generate_model_lc_short(x, transit_params, *theta)
     return -0.5*(np.sum((y-model)**2/yerr**2))
 
-def lnprior(theta, bestfitt0=2454605.89132):
-    if len(theta) == 6:
-        t0, depth, dur, b, q1, q2 = theta
-        if (0.001 < depth < 0.005 and 0.05 < dur < 0.15 and 0 < b < 1 and
-            bestfitt0-0.1 < t0 < bestfitt0+0.1 and 0.0 < q1 < 1.0 and 0.0 < q2 < 1.0):
-            return 0.0
 
-    elif len(theta) == 8:
-        t0, depth, dur, b, q1, q2, q3, q4 = theta
-        if (0.001 < depth < 0.005 and 0.05 < dur < 0.15 and 0 < b < 1 and
-            bestfitt0-0.1 < t0 < bestfitt0+0.1 and 0.0 < q1 < 1.0 and 0.0 < q2 < 1.0 and
-            0.0 < q3 < 1.0 and 0.0 < q4 < 1.0):
-            return 0.0
+def lnprior(theta, transit_params):
+    t0, depth, dur, b, q1, q2 = theta
+    if (0.001 < depth < 0.005 and 0.05 < dur < 0.15 and 0 < b < 1 and
+        transit_params.t0-0.1 < t0 < transit_params.t0+0.1 and
+        0.0 < q1 < 1.0 and 0.0 < q2 < 1.0):
+        return 0.0
     return -np.inf
 
-def lnprob(theta, x, y, yerr, P):
-    lp = lnprior(theta)
+
+def lnprob(theta, x, y, yerr, transit_params):
+    lp = lnprior(theta, transit_params)
     if not np.isfinite(lp):
         return -np.inf
-    return lp + lnlike(theta, x, y, yerr, P)
+    return lp + lnlike(theta, x, y, yerr, transit_params)
 
-def run_emcee(p0, x, y, yerr, n_steps, n_threads=4, burnin=0.4, P=4.8878018, n_walkers=50):
+
+def run_emcee(p0, x, y, yerr, n_steps, transit_params, n_threads=4, burnin=0.4, n_walkers=50):
     """Run emcee on the spotless transits"""
     ndim = len(p0)
     nwalkers = n_walkers
@@ -144,7 +130,8 @@ def run_emcee(p0, x, y, yerr, n_steps, n_threads=4, burnin=0.4, P=4.8878018, n_w
     pos = [p0 + 1e-3*np.random.randn(ndim) for i in range(nwalkers)]
 
     pool = emcee.interruptible_pool.InterruptiblePool(processes=n_threads)
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr, P),
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr,
+                                                                  transit_params),
                                     pool=pool)
 
     sampler.run_mcmc(pos, n_steps)
@@ -154,24 +141,30 @@ def run_emcee(p0, x, y, yerr, n_steps, n_threads=4, burnin=0.4, P=4.8878018, n_w
 
 ## Tools for fitting for the transit ephemeris with fixed transit light curve
 
-def lnlike_ephemeris(theta, x, y, yerr, bestfit_transit_parameters):
-    depth, dur, b, q1, q2 = bestfit_transit_parameters
-    model = generate_model_lc_short(x, theta[0], depth, dur, b, q1, q2, P=theta[1])
+def lnlike_ephemeris(theta, x, y, yerr, transit_params):
+    fit_t0, fit_p = theta
+
+    model = generate_model_lc_short(x, transit_params, per=fit_p, t0=fit_t0)
     return -0.5*(np.sum((y-model)**2/yerr**2))
 
-def lnprior_ephemeris(theta, bestfitt0=2454605.89132):
+
+def lnprior_ephemeris(theta, transit_params):
     t0, P = theta
-    if (bestfitt0-0.1 < t0 < bestfitt0+0.1 and 4.5 < P < 5.5):
+    if (transit_params.t0-0.1 < t0 < transit_params.t0+0.1 and
+        transit_params.per-0.1 < P < transit_params.per+0.1):
         return 0.0
     return -np.inf
 
-def lnprob_ephemeris(theta, x, y, yerr, bestfit_transit_parameters):
-    lp = lnprior_ephemeris(theta)
+
+def lnprob_ephemeris(theta, x, y, yerr, transit_params):
+    lp = lnprior_ephemeris(theta, transit_params)
     if not np.isfinite(lp):
         return -np.inf
-    return lp + lnlike_ephemeris(theta, x, y, yerr, bestfit_transit_parameters)
+    return lp + lnlike_ephemeris(theta, x, y, yerr, transit_params)
 
-def run_emcee_ephemeris(p0, x, y, yerr, n_steps, bestfit_transit_parameters, n_threads=4, burnin=0.4, n_walkers=20):
+
+def run_emcee_ephemeris(p0, x, y, yerr, n_steps, transit_params, n_threads=4,
+                        burnin=0.4, n_walkers=20):
     """
     Run emcee to calculate the ephemeris
 
@@ -185,57 +178,14 @@ def run_emcee_ephemeris(p0, x, y, yerr, n_steps, bestfit_transit_parameters, n_t
     pos = [p0 + 1e-5*np.random.randn(ndim) for i in range(nwalkers)]
 
     pool = emcee.interruptible_pool.InterruptiblePool(processes=n_threads)
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob_ephemeris, args=(x, y, yerr, bestfit_transit_parameters),
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob_ephemeris,
+                                    args=(x, y, yerr,
+                                          transit_params),
                                     pool=pool)
 
     sampler.run_mcmc(pos, n_steps)
     samples = sampler.chain[:, burnin:, :].reshape((-1, ndim))
     return samples, sampler
-
-
-
-#### Tools for fitting spotless transits with ephemeris fixed
-
-def lnlike_fixed_ephem(theta, x, y, yerr):
-    model = generate_model_lc_short_full(x, *theta)
-    return -0.5*(np.sum((y-model)**2/yerr**2))
-
-def lnprior_fixed_ephem(theta, bestfitt0=2454605.89132):
-    if len(theta) == 6:
-        depth, dur, b, q1, q2 = theta
-        if (0.001 < depth < 0.005 and 0.05 < dur < 0.15 and 0 < b < 1 and
-            0.0 < q1 < 1.0 and 0.0 < q2 < 1.0):
-            return 0.0
-
-    elif len(theta) == 8:
-        t0, depth, dur, b, q1, q2, q3, q4 = theta
-        if (0.001 < depth < 0.005 and 0.05 < dur < 0.15 and 0 < b < 1 and
-            bestfitt0-0.1 < t0 < bestfitt0+0.1 and 0.0 < q1 < 1.0 and 0.0 < q2 < 1.0 and
-            0.0 < q3 < 1.0 and 0.0 < q4 < 1.0):
-            return 0.0
-    return -np.inf
-
-def lnprob_fixed_ephem(theta, x, y, yerr):
-    lp = lnprior_fixed_ephem(theta)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + lnlike_fixed_ephem(theta, x, y, yerr)
-#
-# def run_emcee(p0, x, y, yerr, n_steps, n_threads=4, burnin=0.4):
-#     """Run emcee on the spotless transits"""
-#     ndim = len(p0)
-#     nwalkers = 80
-#     n_steps = int(n_steps)
-#     burnin = int(burnin*n_steps)
-#     pos = [p0 + 1e-3*np.random.randn(ndim) for i in range(nwalkers)]
-#
-#     pool = emcee.interruptible_pool.InterruptiblePool(processes=n_threads)
-#     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob_fixed_ephem, args=(x, y, yerr),
-#                                     pool=pool)
-#
-#     sampler.run_mcmc(pos, n_steps)
-#     samples = sampler.chain[:, burnin:, :].reshape((-1, ndim))
-#     return samples, sampler
 
 
 def plot_triangle(samples):
@@ -249,6 +199,7 @@ def plot_triangle(samples):
         fig = corner.corner(samples, labels=["$t_0$", r"depth", r"duration",
                                                r"$b$", "$q_1$", "$q_2$", "$q_3$", "$q_4$"])
     plt.show()
+
 
 def print_emcee_results(samples):
     if samples.shape[1] == 6:
