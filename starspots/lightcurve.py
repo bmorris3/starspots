@@ -143,8 +143,8 @@ class LightCurve(object):
             data = fits.getdata(path)
             header = fits.getheader(path)
             times.append(data['TIME'] + 2454833.0)
-            errors.append(data['PDCSAP_FLUX_ERR'])
-            fluxes.append(data['PDCSAP_FLUX'])
+            errors.append(data['SAP_FLUX_ERR'])
+            fluxes.append(data['SAP_FLUX'])
             quarter.append(len(data['TIME'])*[header['QUARTER']])
 
         times, fluxes, errors, quarter = [np.concatenate(i)
@@ -493,7 +493,7 @@ class TransitLightCurve(LightCurve):
         self.fluxes /= quarterly_max
         self.errors /= quarterly_max
 
-    def fiducial_transit_fit(self, plots=False,
+    def fiducial_transit_fit(self, plots=False, min_method=optimize.fmin,
                              model=generate_very_simple_model_lc_short):
         # Determine cadence:
         typical_time_diff = np.median(np.diff(self.times.jd))*u.day
@@ -516,7 +516,7 @@ class TransitLightCurve(LightCurve):
             return np.sum(((model(times, transit_params, *p) -
                             fluxes)/errors)**2)
 
-        fit_result = optimize.fmin(minimize_this, initial_parameters,
+        fit_result = min_method(minimize_this, initial_parameters,
                                    args=(self.times.jd, self.fluxes,
                                          self.errors, self.transit_params),
                                    disp=False)
@@ -612,6 +612,30 @@ def combine_short_and_long_cadence(short_cadence_transit_light_curves_list,
     transit_params = short_cadence_transit_light_curves_list[0].transit_params
     return LightCurve(times=all_times, fluxes=all_fluxes, errors=all_errors,
                       quarters=all_quarters, name=name,
+                      transit_params=transit_params)
+
+
+def concatenate_light_curves(light_curve_list, name=None):
+    """
+    Combine multiple transit light curves into one `LightCurve` object
+    """
+    times = []
+    fluxes = []
+    errors = []
+    quarters = []
+    for light_curve in light_curve_list:
+        times.append(light_curve.times.jd)
+        fluxes.append(light_curve.fluxes)
+        errors.append(light_curve.errors)
+        quarters.append(light_curve.quarters)
+    times, fluxes, errors, quarters = [np.concatenate(i)
+                                       for i in [times, fluxes,
+                                                 errors, quarters]]
+
+    times = Time(times, format='jd')
+    transit_params = light_curve_list[0].transit_params
+    return LightCurve(times=times, fluxes=fluxes, errors=errors,
+                      quarters=quarters, name=name,
                       transit_params=transit_params)
 
 

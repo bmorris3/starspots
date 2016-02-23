@@ -21,39 +21,6 @@ import matplotlib.pyplot as plt
 import astropy.units as u
 
 
-# def generate_model_lc_short(times, t0, depth, dur, b, q1, q2, q3=None, q4=None):
-#     # LD parameters from Deming 2011 http://adsabs.harvard.edu/abs/2011ApJ...740...33D
-#     rp = depth**0.5
-#     exp_time = (1*u.min).to(u.day).value # Short cadence
-#     params = batman.TransitParams()
-#     params.t0 = t0                       #time of inferior conjunction
-#     params.per = P                     #orbital period
-#     params.rp = rp                      #planet radius (in units of stellar radii)
-#
-#     params.ecc = e                      #eccentricity
-#     params.w = w                      #longitude of periastron (in degrees)
-#     a, inc = T14b2aRsi(params.per, dur, b, rp, e, w)
-#
-#     params.a = a                       #semi-major axis (in units of stellar radii)
-#     params.inc = inc #orbital inclination (in degrees)
-#
-#
-#     u1 = 2*np.sqrt(q1)*q2
-#     u2 = np.sqrt(q1)*(1 - 2*q2)
-#
-#     if q3 is None and q4 is None:
-#         params.u = [u1, u2]                #limb darkening coefficients
-#         params.limb_dark = "quadratic"       #limb darkening model
-#
-#     else:
-#         params.u = [q1, q2, q3, q4]
-#         params.limb_dark = "nonlinear"
-#
-#     m = batman.TransitModel(params, times, supersample_factor=7,
-#                             exp_time=exp_time)
-#     model_flux = m.light_curve(params)
-#     return model_flux
-
 def generate_model_lc_short(times, transit_params, t0=None, depth=None,
                             dur=None, b=None, q1=None, q2=None,
                             per=None):
@@ -107,7 +74,7 @@ def lnlike(theta, x, y, yerr, transit_params):
 
 def lnprior(theta, transit_params):
     t0, depth, dur, b, q1, q2 = theta
-    if (0.001 < depth < 0.005 and 0.05 < dur < 0.15 and 0 < b < 1 and
+    if (0.001 < depth < 0.03 and 0.05 < dur < 0.15 and 0 < b < 1 and
         transit_params.t0-0.1 < t0 < transit_params.t0+0.1 and
         0.0 < q1 < 1.0 and 0.0 < q2 < 1.0):
         return 0.0
@@ -121,7 +88,7 @@ def lnprob(theta, x, y, yerr, transit_params):
     return lp + lnlike(theta, x, y, yerr, transit_params)
 
 
-def run_emcee(p0, x, y, yerr, n_steps, transit_params, n_threads=4, burnin=0.4, n_walkers=50):
+def run_emcee(p0, x, y, yerr, n_steps, transit_params, n_threads=3, burnin=0.4, n_walkers=50):
     """Run emcee on the spotless transits"""
     ndim = len(p0)
     nwalkers = n_walkers
@@ -163,7 +130,7 @@ def lnprob_ephemeris(theta, x, y, yerr, transit_params):
     return lp + lnlike_ephemeris(theta, x, y, yerr, transit_params)
 
 
-def run_emcee_ephemeris(p0, x, y, yerr, n_steps, transit_params, n_threads=4,
+def run_emcee_ephemeris(p0, x, y, yerr, n_steps, transit_params, n_threads=3,
                         burnin=0.4, n_walkers=20):
     """
     Run emcee to calculate the ephemeris

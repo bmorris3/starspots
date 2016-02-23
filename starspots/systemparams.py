@@ -81,25 +81,82 @@ def rough_hat11_params():
     params.limb_dark = "quadratic"       #limb darkening model
     return params
 
+def hat11_params_morris():
+    """
+    Transit light curve parameters from Brett for HAT-P-11. Some parameters
+    constrained by RVs from Winn et al. 2010 [1]_
 
-def kepler17_params_db():
+    Returns
+    -------
+    params : `~batman.TransitParams`
+        Transit parameters for HAT-P-11
 
-    k17_params = batman.TransitParams()
-    k17_params.b = 0.1045441000
-    k17_params.t0 = 2455185.678035                       #time of inferior conjunction
+    .. [1] http://adsabs.harvard.edu/abs/2010ApJ...723L.223W
+    """
+    ecosw = 0.261  # Winn et al. 2010
+    esinw = 0.085  # Winn et al. 2010
+    eccentricity = np.sqrt(ecosw**2 + esinw**2)
+    omega = np.degrees(np.arctan2(esinw, ecosw))
 
-    k17_params.per = 1.4857108000                      #orbital period
-    k17_params.rp = 0.0179935208**0.5      #planet radius (in units of stellar radii)
-    k17_params.duration = 0.09483
+    params = batman.TransitParams()
+    params.t0 = 2454605.89159720   # time of inferior conjunction
+    params.per = 4.88780233        # orbital period
+    params.rp = 0.00343**0.5       # planet radius (in units of stellar radii)
+    params.b = 0.127                      # impact parameter
+    dur = 0.0982                   # transit duration
+    params.inc = 89.4234790468     # orbital inclination (in degrees)
 
-    k17_params.ecc = 0                      #eccentricity
-    k17_params.w = 90.                       #longitude of periastron (in degrees)
-    a, inc = aRs_i(k17_params)
+    params.ecc = eccentricity      # eccentricity
+    params.w = omega              # longitude of periastron (in degrees)
+    params.a = 14.7663717          # semi-major axis (in units of stellar radii)
+    params.u = [0.5636, 0.1502]    # limb darkening coefficients
+    params.limb_dark = "quadratic" # limb darkening model
 
-    k17_params.a = a                       #semi-major axis (in units of stellar radii)
-    k17_params.inc = 88.9456000000 #orbital inclination (in degrees)
+    # Required by some friedrich methods below but not by batman:
+    params.duration = dur
+    params.lam = 106.0          # Sanchis-Ojeda & Winn 2011 (soln 1)
+    params.inc_stellar = 80     # Sanchis-Ojeda & Winn 2011 (soln 1)
+    params.per_rot = 29.984     # Morris periodogram days
 
-    k17_params.u = [0.59984, -0.165775, 0.6876732, -0.349944]   #limb darkening coefficients
-    k17_params.limb_dark = "nonlinear"       #limb darkening model
+    # params.lam = 121.0            # Sanchis-Ojeda & Winn 2011 (soln 2)
+    # params.inc_stellar = 168.0    # Sanchis-Ojeda & Winn 2011 (soln 2)
+    return params
 
-    return k17_params
+def k17_params_morris():
+    """
+    Transit light curve parameters from Brett for Kepler-17. Some parameters
+    constrained by Desert et al. (2011) [1]_
+
+    Returns
+    -------
+    params : `~batman.TransitParams`
+        Transit parameters for Kepler-17
+
+    .. [1] http://adsabs.harvard.edu/abs/2011ApJS..197...14D
+    """
+    sqrt_e_cosw = 0.008
+    sqrt_e_sinw = -0.084
+    eccentricity = np.sqrt(sqrt_e_cosw**2 + sqrt_e_sinw**2)**2
+    omega = np.degrees(np.arctan2(sqrt_e_sinw, sqrt_e_cosw))
+
+    params = batman.TransitParams()
+    params.t0 = 2455185.67863     # time of inferior conjunction
+    params.per = 1.48571118         # orbital period
+    params.rp = 0.01732**0.5            # planet radius (in units of stellar radii)
+    params.b = 0.115                      # impact parameter
+    dur = 0.0948                  # transit duration
+    params.inc = 88.92684              # orbital inclination (in degrees)
+
+    params.ecc = eccentricity      # eccentricity
+    params.w = omega               # longitude of periastron (in degrees)
+    params.a = 5.661768                # semi-major axis (in units of stellar radii)
+    params.u = [0.40368, 0.25764]      # limb darkening coefficients
+    params.limb_dark = "quadratic" # limb darkening model
+
+    # Required by some friedrich methods below but not by batman:
+    params.duration = dur
+    params.lam = 0.0
+    params.inc_stellar = 90
+    params.per_rot = 12.04
+    return params
+
