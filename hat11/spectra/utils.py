@@ -8,16 +8,18 @@ from specutils import Spectrum1D
 
 from specutils.io import read_fits
 from specutils import Spectrum1D
-
+from astropy.io import fits
 
 class EchelleSpectrum(object):
-    def __init__(self, spectrum_list):
+    def __init__(self, spectrum_list, header=None):
         self.spectrum_list = spectrum_list
+        self.header = header
         
     @classmethod
     def from_fits(cls, path):
         spectrum_list = read_fits.read_fits_spectrum1d(path)
-        return cls(spectrum_list)
+        header = fits.getheader(path)
+        return cls(spectrum_list, header=header)
     
     def get_order(self, order):
         return self.spectrum_list[order]
@@ -93,4 +95,4 @@ def continuum_normalize(target_spectrum, standard_spectrum, polynomial_order):
 
         normalized_spectrum_list.append(normalized_target_spectrum)
         
-    return EchelleSpectrum(normalized_spectrum_list)
+    return EchelleSpectrum(normalized_spectrum_list, header=target_spectrum.header)
